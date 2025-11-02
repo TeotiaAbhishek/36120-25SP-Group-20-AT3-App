@@ -1,0 +1,23 @@
+# Core Python environment
+python==3.11.4
+
+# Machine Learning and Data
+scikit-learn==1.5.1
+pandas==2.2.2
+numpy
+joblib==1.4.2
+xgboost==2.1.0
+lightgbm==4.4.0
+hyperopt==0.2.7
+
+# API and Web App
+fastapi==0.111.0
+uvicorn==0.30.1
+streamlit==1.36.0
+
+# Model Explainability and Experiment Tracking
+lime==0.2.0.1
+wandb==0.17.4
+
+# Jupyter Environment (for experiments)
+jupyterlab==4.2.3
