@@ -28,7 +28,6 @@ page = st.sidebar.radio(
     key="sidebar_radio",
 )
 
-# Keep sidebar and button navigation in sync
 if page != st.session_state.page:
     st.session_state.page = page
 
@@ -66,10 +65,10 @@ if st.session_state.page == "Price Analysis":
 
     # --- Prediction Button ---
     st.markdown("---")
-    st.markdown("###Want to see the predicted high for T+1?")
+    st.markdown("Want to see the predicted high for T+1?")
     if st.button("Get Prediction for T+1"):
         go_to("T+1 Prediction")
-        st.experimental_rerun()  # re-render the app immediately
+        st.rerun()
 
 # ------------------------------------------------------------
 # PAGE 2: T+1 PREDICTION
@@ -99,4 +98,4 @@ elif st.session_state.page == "T+1 Prediction":
     st.markdown("---")
     if st.button("Back to Price Analysis"):
         go_to("Price Analysis")
-        st.experimental_rerun()
+        st.rerun()
