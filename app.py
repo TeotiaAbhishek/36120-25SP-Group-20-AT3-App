@@ -9,14 +9,36 @@ import requests
 st.set_page_config(page_title="Crypto Explorer", layout="wide")
 
 # ------------------------------------------------------------
-# INITIALISE SESSION STATE FOR PAGE NAVIGATION
+# HELPER FUNCTIONS (with caching)
+# ------------------------------------------------------------
+@st.cache_data(show_spinner=False)
+def load_data():
+    """Load and preprocess Bitcoin CSV data once."""
+    df = pd.read_csv("bitcoin_usd_proc.csv")
+    df = df[df["date"] < "2025-10-13"]
+    return df
+
+@st.cache_data(ttl=600, show_spinner=False)
+def fetch_prediction(api_url: str):
+    """Fetch T+1 prediction from API (cached for 10 minutes)."""
+    try:
+        response = requests.get(api_url, timeout=10)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            return {"error": f"API Error: {response.status_code}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+# ------------------------------------------------------------
+# INITIALISE SESSION STATE
 # ------------------------------------------------------------
 if "page" not in st.session_state:
-    st.session_state.page = "Price Analysis"  # default page
+    st.session_state.page = "Price Analysis"
 
-# Function to switch pages internally
 def go_to(page_name: str):
     st.session_state.page = page_name
+    st.rerun()
 
 # ------------------------------------------------------------
 # SIDEBAR NAVIGATION
@@ -25,7 +47,6 @@ page = st.sidebar.radio(
     "Navigate",
     ["Price Analysis", "T+1 Prediction"],
     index=0 if st.session_state.page == "Price Analysis" else 1,
-    key="sidebar_radio",
 )
 
 if page != st.session_state.page:
@@ -38,12 +59,12 @@ if st.session_state.page == "Price Analysis":
     st.title("Cryptocurrency Explorer")
     st.subheader("Price Analysis")
 
-    try:
-        df = pd.read_csv("bitcoin_usd_proc.csv")
-        df = df[df["date"] < "2025-10-13"]
-    except FileNotFoundError:
-        st.error("bitcoin_usd_proc.csv not found.")
-        st.stop()
+    with st.spinner("Loading price data..."):
+        try:
+            df = load_data()
+        except FileNotFoundError:
+            st.error("bitcoin_usd_proc.csv not found.")
+            st.stop()
 
     if df.empty:
         st.warning("No OHLC data available for this coin.")
@@ -63,12 +84,10 @@ if st.session_state.page == "Price Analysis":
         )
         st.plotly_chart(fig, use_container_width=True)
 
-    # --- Prediction Button ---
     st.markdown("---")
     st.markdown("Want to see the predicted high for T+1?")
     if st.button("Get Prediction for T+1"):
         go_to("T+1 Prediction")
-        st.rerun()
 
 # ------------------------------------------------------------
 # PAGE 2: T+1 PREDICTION
@@ -79,23 +98,17 @@ elif st.session_state.page == "T+1 Prediction":
 
     API_URL = "https://three6120-25sp-25224496-at3-api.onrender.com/predict_next_day"
 
-    try:
-        response = requests.get(API_URL, timeout=10)
-        if response.status_code == 200:
-            result = response.json()
-            st.success("Prediction Fetched Successfully!")
+    with st.spinner("Fetching prediction..."):
+        result = fetch_prediction(API_URL)
 
-            st.metric("Last Date in Data", result.get("last_date_in_data", "N/A"))
-            st.metric("Predicted Date", result.get("predicted_date", "N/A"))
-            st.metric("Predicted High (USD)", f"${result.get('predicted_high_tplus1', 'N/A'):,.2f}")
-        else:
-            st.error(f"API Error: {response.status_code}")
-
-    except Exception as e:
-        st.error("Could not connect to the API.")
-        st.write(e)
+    if "error" in result:
+        st.error(f"Could not fetch prediction: {result['error']}")
+    else:
+        st.success("Prediction Fetched Successfully!")
+        st.metric("Last Date in Data", result.get("last_date_in_data", "N/A"))
+        st.metric("Predicted Date", result.get("predicted_date", "N/A"))
+        st.metric("Predicted High (USD)", f"${result.get('predicted_high_tplus1', 'N/A'):,.2f}")
 
     st.markdown("---")
     if st.button("Back to Price Analysis"):
         go_to("Price Analysis")
-        st.rerun()
